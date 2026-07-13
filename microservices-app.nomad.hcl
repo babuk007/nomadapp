@@ -14,47 +14,7 @@ job "e-commerce-suite" {
   }
 
   # ---------------------------------------------------------
-  # Tier 1: Cache & Session Store (Redis)
-  # ---------------------------------------------------------
-  group "database" {
-    count = 1
-
-    network {
-      port "redis" {
-        static = 6379
-      }
-    }
-
-    task "redis-cache" {
-      driver = "docker"
-
-      config {
-        image = "redis:7.2-alpine"
-        ports = ["redis"]
-      }
-
-      resources {
-        cpu    = 300  # MHz
-        memory = 256  # MB
-      }
-
-      service {
-        name = "app-redis"
-        port = "redis"
-        tags = ["database", "nosql"]
-
-        check {
-          name     = "redis-alive"
-          type     = "tcp"
-          interval = "10s"
-          timeout  = "2s"
-        }
-      }
-    }
-  }
-
-  # ---------------------------------------------------------
-  # Tier 2: Backend REST API (Java Spring Boot App)
+  # Tier 1: Backend REST API (Java Spring Boot App)
   # ---------------------------------------------------------
   group "backend-api" {
     count = 2 # Scales out to 2 instances across nodes
@@ -132,7 +92,7 @@ EOH
   }
 
   # ---------------------------------------------------------
-  # Tier 3: Frontend Client Web Server (React & Nginx)
+  # Tier 2: Frontend Client Web Server (React & Nginx)
   # ---------------------------------------------------------
   group "frontend" {
     count = 2
