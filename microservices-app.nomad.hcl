@@ -1,6 +1,6 @@
-job "e-commerce-suite" {
+job "enterprise-ecommerce-demo" {
   region      = "global"
-  datacenters = ["us-central1", "us-east1"]
+  datacenters = ["us-central1"]
   type        = "service"
 
   # Rolling updates strategy
@@ -13,42 +13,43 @@ job "e-commerce-suite" {
     canary            = 0
   }
 
-  # ---------------------------------------------------------
-  # Tier 1: Backend REST API (Mocked with Public Hello-Kubernetes on Port 8080)
-  # ---------------------------------------------------------
-  group "backend-api" {
-    count = 2
+  # =================================================================
+  # TIER 1: E-Commerce Web Storefront (Juice Shop / Port 3000)
+  # =================================================================
+  group "frontend-store" {
+    count = 1
 
     network {
-      port "http" {
-        to = 8080
+      port "web" {
+        to = 3000 # Juice Shop natively runs on 3000
       }
     }
 
-    task "api-service" {
+    task "juice-shop-web" {
       driver = "docker"
 
       config {
-        image = "paulbouwer/hello-kubernetes:1.10"
-        ports = ["http"]
+        image = "bkimminich/juice-shop:v16.0.0"
+        ports = ["web"]
       }
 
+      # Custom business configuration
       env {
-        MESSAGE = "Successfully Modernized Backend API from Nomad to Cloud Run!"
+        NODE_ENV = "production"
       }
 
       resources {
-        cpu    = 200
-        memory = 256
+        cpu    = 500
+        memory = 512 # Premium specs for smooth storefront operation
       }
 
       service {
-        name = "backend-api"
-        port = "http"
-        tags = ["api", "v2"]
+        name = "store-frontend"
+        port = "web"
+        tags = ["storefront", "v1"]
 
         check {
-          name     = "http-health"
+          name     = "http-alive"
           type     = "http"
           path     = "/"
           interval = "15s"
@@ -58,46 +59,42 @@ job "e-commerce-suite" {
     }
   }
 
-  # ---------------------------------------------------------
-  # Tier 2: Frontend Client Web Server (Mocked with Public Hello-Kubernetes on Port 8080)
-  # ---------------------------------------------------------
-  group "frontend" {
-    count = 2
+  # =================================================================
+  # TIER 2: Premium Coffee Catalog (HashiCups / Port 80)
+  # =================================================================
+  group "coffee-catalog" {
+    count = 1
 
     network {
       port "web" {
-        to = 8080
+        to = 80 # HashiCups runs on port 80
       }
     }
 
-    task "web-portal" {
+    task "hashicups-web" {
       driver = "docker"
 
       config {
-        image = "paulbouwer/hello-kubernetes:1.10"
+        image = "hashicorp/hashicups-frontend:v0.1.1"
         ports = ["web"]
       }
 
-      env {
-        MESSAGE = "Successfully Modernized Frontend Web Portal from Nomad to Cloud Run!"
-      }
-
       resources {
-        cpu    = 200
-        memory = 128
+        cpu    = 300
+        memory = 256
       }
 
       service {
-        name = "frontend"
+        name = "coffee-store"
         port = "web"
-        tags = ["frontend", "http"]
+        tags = ["coffee", "http"]
 
         check {
-          name     = "web-alive"
+          name     = "coffee-alive"
           type     = "http"
           path     = "/"
-          interval = "10s"
-          timeout  = "2s"
+          interval = "15s"
+          timeout  = "3s"
         }
       }
     }
