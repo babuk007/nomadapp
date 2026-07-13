@@ -14,20 +14,14 @@ job "e-commerce-suite" {
   }
 
   # ---------------------------------------------------------
-  # Tier 1: Backend REST API (Java Spring Boot App)
+  # Tier 1: Backend REST API (Mocked with Public Hello-Kubernetes on Port 8080)
   # ---------------------------------------------------------
   group "backend-api" {
-    count = 2 # Scales out to 2 instances across nodes
-
-    # Ensure instances are placed on different physical nodes if possible
-    constraint {
-      attribute = "${node.unique.name}"
-      operator  = "distinct_property"
-    }
+    count = 2
 
     network {
       port "http" {
-        to = 8080 # Container internal port mapped to dynamic host port
+        to = 8080
       }
     }
 
@@ -35,38 +29,17 @@ job "e-commerce-suite" {
       driver = "docker"
 
       config {
-        image = "myorg/backend-api:v2.1.0"
+        image = "paulbouwer/hello-kubernetes:1.10"
         ports = ["http"]
       }
 
-      # Inject environment variables dynamically
       env {
-        SPRING_PROFILES_ACTIVE = "prod"
-        JVM_OPTS               = "-Xms256m -Xmx512m"
-      }
-
-      # Dynamically discover Redis using Nomad/Consul DNS or templates
-      template {
-        destination = "local/application.properties"
-        change_mode = "restart"
-        data        = <<EOH
-# Spring Data Redis Configuration
-{{ range service "app-redis" }}
-spring.data.redis.host={{ .Address }}
-spring.data.redis.port={{ .Port }}
-{{ else }}
-spring.data.redis.host=localhost
-spring.data.redis.port=6379
-{{ end }}
-
-# Database password from Vault (securely injected)
-# spring.datasource.password = "{{ with secret "secret/data/db" }}{{ .Data.data.password }}{{ end }}"
-EOH
+        MESSAGE = "Successfully Modernized Backend API from Nomad to Cloud Run!"
       }
 
       resources {
-        cpu    = 800  # MHz
-        memory = 512  # MB
+        cpu    = 200
+        memory = 256
       }
 
       service {
@@ -75,31 +48,25 @@ EOH
         tags = ["api", "v2"]
 
         check {
-          name     = "http-health-endpoint"
+          name     = "http-health"
           type     = "http"
-          path     = "/actuator/health"
+          path     = "/"
           interval = "15s"
           timeout  = "3s"
-
-          check_restart {
-            limit           = 3
-            grace           = "60s"
-            ignore_warnings = false
-          }
         }
       }
     }
   }
 
   # ---------------------------------------------------------
-  # Tier 2: Frontend Client Web Server (React & Nginx)
+  # Tier 2: Frontend Client Web Server (Mocked with Public Hello-Kubernetes on Port 8080)
   # ---------------------------------------------------------
   group "frontend" {
     count = 2
 
     network {
       port "web" {
-        to = 80
+        to = 8080
       }
     }
 
@@ -107,43 +74,17 @@ EOH
       driver = "docker"
 
       config {
-        image = "myorg/frontend-portal:v1.3.0"
+        image = "paulbouwer/hello-kubernetes:1.10"
         ports = ["web"]
       }
 
-      # Render custom Nginx reverse proxy configuration to route /api traffic to our dynamic backend-api service
-      template {
-        destination = "local/nginx.conf"
-        change_mode = "signal"
-        change_signal = "SIGHUP" # Reloads Nginx gracefully without container restart
-        data        = <<EOH
-server {
-    listen 80;
-    server_name localhost;
-
-    location / {
-        root   /usr/share/nginx/html;
-        index  index.html index.htm;
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api/ {
-        # Reverse Proxy to backend-api dynamically resolved from Nomad's Consul registry
-        {{ range service "backend-api" }}
-        proxy_pass http://{{ .Address }}:{{ .Port }}/;
-        {{ else }}
-        return 502 "No healthy backend instances found";
-        {{ end }}
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-EOH
+      env {
+        MESSAGE = "Successfully Modernized Frontend Web Portal from Nomad to Cloud Run!"
       }
 
       resources {
-        cpu    = 200  # MHz
-        memory = 128  # MB
+        cpu    = 200
+        memory = 128
       }
 
       service {
@@ -152,7 +93,7 @@ EOH
         tags = ["frontend", "http"]
 
         check {
-          name     = "web-portal-alive"
+          name     = "web-alive"
           type     = "http"
           path     = "/"
           interval = "10s"
