@@ -20,7 +20,7 @@ spec:
       # az aks update -g <resource-group> -n <cluster-name> --attach-acr <acr-name>
       containers:
       - name: nomad-app
-        image: appmodcr.azurecr.io/src:4037b9aa
+        image: appmodcr.azurecr.io/src:067f5a84
         ports:
         - containerPort: 8080
         resources:
