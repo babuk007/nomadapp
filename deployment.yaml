@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nomad-app-dev-deployment
+  namespace: default
+  labels:
+    app: nomad-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nomad-app
+  template:
+    metadata:
+      labels:
+        app: nomad-app
+    spec:
+      automountServiceAccountToken: false
+      # For AKS, ensure your cluster is attached to your ACR:
+      # az aks update -g <resource-group> -n <cluster-name> --attach-acr <acr-name>
+      containers:
+      - name: nomad-app
+        image: appmodcr.azurecr.io/src:4037b9aa
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1024Mi
+          requests:
+            cpu: "250m"
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /actuator/health/liveness
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /actuator/health/readiness
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 10
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: nomad-app-dev-service
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: nomad-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
