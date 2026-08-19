@@ -10,7 +10,7 @@ on:
 env:
   ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
   SERVICE_NAME: nomad-app
-  APP_SERVICE_NAME: ${{ secrets.AZURE_APP_SERVICE_NAME || github.event.repository.name }}
+  APP_SERVICE_NAME: nomad-app-service
 
 jobs:
   build-and-deploy:
