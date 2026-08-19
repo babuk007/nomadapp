@@ -10,7 +10,7 @@ on:
 env:
   ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
   SERVICE_NAME: nomad-app
-  APP_SERVICE_NAME: nomad-app-service
+  APP_SERVICE_NAME: ${{ secrets.AZURE_APP_SERVICE_NAME || github.event.repository.name }}
 
 jobs:
   build-and-deploy:
@@ -23,6 +23,19 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Sanitize App Service Name
+        run: |
+          SAN_APP_NAME=$(echo "${{ env.APP_SERVICE_NAME }}" | tr '_' '-' | tr '[:upper:]' '[:lower:]' | cut -c1-50 | sed 's/^-//;s/-$//')
+          echo "APP_SERVICE_NAME=$SAN_APP_NAME" >> $GITHUB_ENV
+
+      - name: Ensure App Service Plan & Web App exist
+        run: |
+          az appservice plan show --name appmod-service-plan --resource-group rg-appmod-agentic || \
+          az appservice plan create --name appmod-service-plan --resource-group rg-appmod-agentic --sku B1 --is-linux --location eastus
+          
+          az webapp show --name ${{ env.APP_SERVICE_NAME }} --resource-group rg-appmod-agentic || \
+          az webapp create --name ${{ env.APP_SERVICE_NAME }} --resource-group rg-appmod-agentic --plan appmod-service-plan --deployment-container-image-name ${{ env.ACR_NAME }}.azurecr.io/${{ env.SERVICE_NAME }}:latest
 
       - name: Get ACR Access Token
         id: acr-token
